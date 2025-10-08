@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=KonqPopupMenu/Plugin, inode/directory
+Actions=pasteAsSymLink
+MimeType=inode/directory;
+X-KDE-Priority=TopLevel
+
+[Desktop Action pasteAsSymLink]
+Name=Paste as Symbolic Link
+Icon=special_paste-symbolic
+Exec=/usr/bin/copyassymlink %f
