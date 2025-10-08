@@ -1,7 +1,7 @@
 # KDE Dolphin Submenu - Copy as Symbolic Link
 
 ## Description:
-This will give you a new "Copy as Symbolic Link" submenu on Dolphin. You can create symlinks from files and folders.
+This will give you a new "Paste as Symbolic Link" submenu on Dolphin. You can create symlinks from files and folders.
 
 ## Instruccions:
 - run install.sh
