@@ -9,6 +9,27 @@ X-KDE-Protocols=file
 
 [Desktop Action pasteAsSymLink]
 Name=Paste as Symbolic Link
-Name[es]=Copiar como Link Símbolico
 Icon=special_paste-symbolic
 Exec=/usr/bin/copyassymlink %f
+Name[es]=Copiar como Link Simbólico
+# AI Translated
+Name[ar]=لصق كوصلة رمزية
+Name[ca]=Enganxa com a enllaç simbòlic
+Name[cs]=Vložit jako symbolický odkaz
+Name[da]=Indsæt som symbolsk henvisning
+Name[de]=Als symbolische Verknüpfung einfügen
+Name[el]=Επικόλληση ως συμβολική σύνδεση
+Name[fr]=Coller comme lien symbolique
+Name[hu]=Beillesztés szimbolikus hivatkozásként
+Name[it]=Incolla come collegamento simbolico
+Name[ja]=シンボリックリンクとして貼り付け
+Name[ko]=심볼릭 링크로 붙여넣기
+Name[nl]=Plakken als symbolische link
+Name[pl]=Wklej jako dowiązanie symboliczne
+Name[pt_BR]=Colar como Link Simbólico
+Name[ru]=Вставить как символическую ссылку
+Name[sk]=Vložiť ako symbolický odkaz
+Name[sv]=Klistra in som symbolisk länk
+Name[tr]=Sembolik Bağ Olarak Yapıştır
+Name[uk]=Вставити як символічне посилання
+Name[zh_CN]=粘贴为符号链接
