@@ -8,6 +8,9 @@ This will give you a new "Paste as Symbolic Link" submenu on Dolphin. You can cr
 - quit and reopen Dolphin.
 - (optional) run make uninstall to remove the files.
 
+# Remove old version:
+- run make uninstall-old to remove the old CopyAsSimLink script.
+
 ## Dependencies:
 - Python 3
 - KDE Plasma 6 (Will try to add more clipboard backends)
