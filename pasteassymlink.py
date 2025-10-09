@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #-*- coding: utf-8 -*-
 #
-#       CopyAsSymLink
+#       PasteAsSymLink
 #
 #       This script creates a symlink for a given path(s) on the clipboard
 #
