@@ -10,7 +10,7 @@ X-KDE-Protocols=file
 [Desktop Action pasteAsSymLink]
 Name=Paste as Symbolic Link
 Icon=special_paste-symbolic
-Exec=$HOME/.local/bin/pasteassymlink.py %f
+Exec=/usr/bin/pasteassymlink.py %f
 Name[es]=Copiar como Link Simbólico
 # AI Translated
 Name[ar]=لصق كوصلة رمزية

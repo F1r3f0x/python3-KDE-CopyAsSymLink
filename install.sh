@@ -7,7 +7,8 @@ set -e
 
 NAME="PasteAsSymLink"
 SCRIPT="pasteassymlink.py"
-DESKTOPFILE="plabin-dolphin-pasteassymlink.desktop"
+USR_DESKTOPFILE="plabin-dolphin-pasteassymlink.desktop"
+SYS_DESKTOPFILE="sys-plabin-dolphin-pasteassymlink.desktop"
 ACTION=${1:-"--install"}  # Default to --install if no args
 
 SYS_DIR_DESKTOP="/usr/share/kio/servicemenus"
@@ -20,10 +21,12 @@ if [ "$EUID" -eq 0 ]; then  # if su
   echo "Running as root. Performing system-wide installation."
   DIR_DESKTOP="$SYS_DIR_DESKTOP"
   DIR_BIN="$SYS_DIR_BIN"
+  DESKTOPFILE="$SYS_DESKTOPFILE"
 else
   echo "Running as user. Performing local installation."
   DIR_DESKTOP="$USR_DIR_DESKTOP"
   DIR_BIN="$USR_DIR_BIN"
+  DESKTOPFILE="$USR_DESKTOPFILE"
 fi
 
 case "$ACTION" in
