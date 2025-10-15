@@ -12,7 +12,7 @@ import sys
 import subprocess
 from urllib.parse import urlparse, unquote
 
-def get_clipboard():
+def get_clipboard() -> tuple[str, str]:
     """Gets clipboard content from various backends."""
     commands = [
         ['qdbus', 'org.kde.klipper', '/klipper', 'org.kde.klipper.klipper.getClipboardContents'],
@@ -24,14 +24,14 @@ def get_clipboard():
     for command in commands:
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=True)
-            return result.stdout.strip()
+            return command[0], result.stdout.strip()
         except (FileNotFoundError, subprocess.CalledProcessError):
             pass
 
     print("Error: Could not get clipboard contents. Please make sure you are running KDE Plasma or have xclip, xsel or wl-paste installed.")
     return None
 
-def main():
+def main() -> None:
     """Creates symbolic links in a target directory based on file paths from the clipboard."""
     # Dolphin passes the file path in the args
     if len(sys.argv) < 2:
@@ -43,14 +43,19 @@ def main():
         print(f"Error: Target directory '{target_directory}' does not exist or is not a directory.")
         sys.exit(1)
         
-    clipboard_text = get_clipboard()
+    command, clipboard_text = get_clipboard()
 
     if not clipboard_text:
         print("Error: Clipboard is empty or could not be read.")
         sys.exit(1)
 
     # Clipboard items are separated by newlines
-    clipboard_items = clipboard_text.split('\n')
+    clipboard_items = ""
+    
+    if command == "qdbus":
+        clipboard_items = clipboard_text.split(' ')
+    else:
+        clipboard_items = clipboard_text.split('\n')
     
     success_count = 0
     error_count = 0 
