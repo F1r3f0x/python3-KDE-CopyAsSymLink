@@ -12,34 +12,45 @@ import sys
 import subprocess
 from urllib.parse import urlparse, unquote
 
-def get_clipboard_kde():
-    """Gets clipboard content on KDE Plasma by calling qdbus."""
-    try:
-        command = [
-            'qdbus', 'org.kde.klipper', '/klipper',
-            'org.kde.klipper.klipper.getClipboardContents'
-        ]
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
-        return result.stdout.strip()
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        print("Error: Can't get clipboard contents. Are you running KDE Plasma?")
-        return None
+def get_clipboard():
+    """Gets clipboard content from various backends."""
+    commands = [
+        ['qdbus', 'org.kde.klipper', '/klipper', 'org.kde.klipper.klipper.getClipboardContents'],
+        ['wl-paste'],
+        ['xclip', '-o', '-selection', 'clipboard'],
+        ['xsel', '--clipboard', '--output']
+    ]
+
+    for command in commands:
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            return result.stdout.strip()
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            pass
+
+    print("Error: Could not get clipboard contents. Please make sure you are running KDE Plasma or have xclip, xsel or wl-paste installed.")
+    return None
 
 def main():
+    """Creates symbolic links in a target directory based on file paths from the clipboard."""
     # Dolphin passes the file path in the args
     if len(sys.argv) < 2:
         print("Error: No target directory provided.")  # Print statements go to logs.
         sys.exit(1)
 
     target_directory = sys.argv[1]
-    clipboard_text = get_clipboard_kde()
+    if not os.path.isdir(target_directory):
+        print(f"Error: Target directory '{target_directory}' does not exist or is not a directory.")
+        sys.exit(1)
+        
+    clipboard_text = get_clipboard()
 
     if not clipboard_text:
         print("Error: Clipboard is empty or could not be read.")
         sys.exit(1)
 
-    # Clipboard items are separated by spaces
-    clipboard_items = clipboard_text.split(' ')
+    # Clipboard items are separated by newlines
+    clipboard_items = clipboard_text.split('\n')
     
     success_count = 0
     error_count = 0 
@@ -57,6 +68,11 @@ def main():
             source_path = unquote(parsed_uri.path)
         else:
             source_path = file_path
+
+        if not os.path.isabs(source_path):
+            print(f"Skipping (not an absolute path): '{source_path}'")
+            error_count += 1
+            continue
 
         if not os.path.exists(source_path):
             print(f"Skipping (not found): '{source_path}'")
@@ -79,4 +95,5 @@ def main():
             
     print(f"\nOperation complete. {success_count} links created, {error_count} items skipped.")
 
-main()
+if __name__ == "__main__":
+    main()
