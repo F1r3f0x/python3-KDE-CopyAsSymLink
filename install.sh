@@ -38,7 +38,7 @@ case "$ACTION" in
     
     # Install files with correct permissions and substituted binary path
     sed "s|@BIN_DIR@|$DIR_BIN|g" "$DESKTOPFILE" > "$DIR_DESKTOP/$DESKTOPFILE"
-    chmod 644 "$DIR_DESKTOP/$DESKTOPFILE"
+    chmod 755 "$DIR_DESKTOP/$DESKTOPFILE"
     install -m 755 "$SCRIPT" "$DIR_BIN/"
     
     echo "Installation complete!"
