@@ -12,6 +12,9 @@ import subprocess
 # Ensure the root directory is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Disable desktop notifications during tests
+os.environ["PASTEASSYMLINK_NO_NOTIFY"] = "1"
+
 import pasteassymlink
 
 
@@ -170,11 +173,71 @@ class TestGetClipboard(unittest.TestCase):
         self.assertEqual(text, "file:///tmp/wayland.txt")
 
     @patch("subprocess.run")
+    def test_backend_timeout_falls_back(self, mock_run):
+        # First backend times out, second succeeds
+        mock_run.side_effect = [
+            subprocess.TimeoutExpired(cmd="qdbus", timeout=3),
+            MagicMock(stdout="file:///tmp/timeout_fallback.txt\n"),
+        ]
+        backend, text = pasteassymlink.get_clipboard()
+        self.assertEqual(backend, "wl-paste")
+        self.assertEqual(text, "file:///tmp/timeout_fallback.txt")
+
+    @patch("subprocess.run")
     def test_all_backends_fail(self, mock_run):
         mock_run.side_effect = FileNotFoundError("command not found")
         backend, text = pasteassymlink.get_clipboard()
         self.assertIsNone(backend)
         self.assertIsNone(text)
+
+
+class TestNotify(unittest.TestCase):
+    """Tests for desktop notification dispatching."""
+
+    @patch.dict(os.environ, {"PASTEASSYMLINK_NO_NOTIFY": ""}, clear=True)
+    @patch("shutil.which")
+    @patch("subprocess.run")
+    def test_notify_send_called_when_available(self, mock_run, mock_which):
+        mock_which.side_effect = lambda cmd: "/usr/bin/notify-send" if cmd == "notify-send" else None
+        pasteassymlink.notify("Test Message", is_error=True)
+        mock_run.assert_called_once()
+        args = mock_run.call_args[0][0]
+        self.assertEqual(args[0], "notify-send")
+        self.assertIn("critical", args)
+        self.assertIn("-i", args)
+        self.assertIn("dialog-error", args)
+        self.assertIn("Test Message", args)
+
+    @patch.dict(os.environ, {"PASTEASSYMLINK_NO_NOTIFY": ""}, clear=True)
+    @patch("shutil.which")
+    @patch("subprocess.run")
+    def test_kdialog_called_when_notify_send_missing(self, mock_run, mock_which):
+        mock_which.side_effect = lambda cmd: "/usr/bin/kdialog" if cmd == "kdialog" else None
+        pasteassymlink.notify("Test Info", is_error=False)
+        mock_run.assert_called_once()
+        args = mock_run.call_args[0][0]
+        self.assertEqual(args[0], "kdialog")
+        self.assertIn("--icon", args)
+        self.assertIn("special_paste-symbolic", args)
+        self.assertIn("--passivepopup", args)
+        self.assertIn("Test Info", args)
+
+    @patch.dict(os.environ, {"PASTEASSYMLINK_NO_NOTIFY": ""}, clear=True)
+    @patch("shutil.which")
+    @patch("subprocess.run")
+    def test_custom_icon_used_if_provided(self, mock_run, mock_which):
+        mock_which.side_effect = lambda cmd: "/usr/bin/notify-send" if cmd == "notify-send" else None
+        pasteassymlink.notify("Custom Icon Message", icon="edit-paste")
+        mock_run.assert_called_once()
+        args = mock_run.call_args[0][0]
+        self.assertIn("-i", args)
+        self.assertIn("edit-paste", args)
+
+    @patch.dict(os.environ, {"PASTEASSYMLINK_NO_NOTIFY": "1"})
+    @patch("subprocess.run")
+    def test_notify_suppressed_when_env_var_set(self, mock_run):
+        pasteassymlink.notify("Should not notify")
+        mock_run.assert_not_called()
 
 
 class TestMain(unittest.TestCase):

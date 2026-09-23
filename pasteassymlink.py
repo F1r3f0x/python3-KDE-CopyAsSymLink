@@ -10,23 +10,63 @@
 import os
 import sys
 import subprocess
+import shutil
 import re
 from urllib.parse import urlparse, unquote
+
+def notify(
+    message: str,
+    title: str = "Paste as SymLink",
+    is_error: bool = False,
+    icon: str | None = None,
+) -> None:
+    """Sends a desktop notification using notify-send or kdialog if available."""
+    if os.environ.get("PASTEASSYMLINK_NO_NOTIFY"):
+        return
+
+    if icon is None:
+        icon = "dialog-error" if is_error else "special_paste-symbolic"
+
+    if shutil.which("notify-send"):
+        urgency = "critical" if is_error else "normal"
+        try:
+            subprocess.run(
+                ["notify-send", "-u", urgency, "-a", title, "-i", icon, title, message],
+                check=False,
+                timeout=3,
+            )
+        except Exception:
+            pass
+    elif shutil.which("kdialog"):
+        dialog_arg = "--error" if is_error else "--passivepopup"
+        try:
+            cmd = ["kdialog", "--icon", icon, dialog_arg, message]
+            if not is_error:
+                cmd.append("3")  # display for 3 seconds
+            subprocess.run(cmd, check=False, timeout=3)
+        except Exception:
+            pass
 
 def get_clipboard() -> tuple[str | None, str | None]:
     """Gets clipboard content from various backends."""
     commands = [
         ['qdbus', 'org.kde.klipper', '/klipper', 'org.kde.klipper.klipper.getClipboardContents'],
+        ['wl-paste', '-t', 'text/uri-list'],
         ['wl-paste'],
+        ['xclip', '-o', '-selection', 'clipboard', '-t', 'text/uri-list'],
         ['xclip', '-o', '-selection', 'clipboard'],
         ['xsel', '--clipboard', '--output']
     ]
 
     for command in commands:
         try:
-            result = subprocess.run(command, capture_output=True, text=True, check=True)
-            return command[0], result.stdout.strip()
-        except (FileNotFoundError, subprocess.CalledProcessError):
+            result = subprocess.run(
+                command, capture_output=True, text=True, check=True, timeout=3, errors="replace"
+            )
+            output = result.stdout.strip()
+            if output:
+                return command[0], output
+        except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
             pass
 
     print("Error: Could not get clipboard contents. Please make sure you are running KDE Plasma or have xclip, xsel or wl-paste installed.")
@@ -102,24 +142,35 @@ def main() -> None:
     """Creates symbolic links in a target directory based on file paths from the clipboard."""
     # Dolphin passes the file path in the args
     if len(sys.argv) < 2:
-        print("Error: No target directory provided.")  # Print statements go to logs.
+        msg = "Error: No target directory provided."
+        print(msg)
+        notify(msg, is_error=True)
         sys.exit(1)
 
     target_directory = sys.argv[1]
     if not os.path.isdir(target_directory):
-        print(f"Error: Target directory '{target_directory}' does not exist or is not a directory.")
+        msg = f"Error: Target directory '{target_directory}' does not exist or is not a directory."
+        print(msg)
+        notify(msg, is_error=True)
         sys.exit(1)
 
     command, clipboard_text = get_clipboard()
 
     if not clipboard_text:
-        print("Error: Clipboard is empty or could not be read.")
+        msg = "Error: Clipboard is empty or could not be read."
+        print(msg)
+        notify(msg, is_error=True)
         sys.exit(1)
 
     clipboard_items = parse_clipboard_items(clipboard_text)
     success_count, error_count = create_symlinks(target_directory, clipboard_items)
 
     print(f"\nOperation complete. {success_count} links created, {error_count} items skipped.")
+
+    if success_count > 0:
+        notify(f"Created {success_count} symbolic link(s).")
+    elif error_count > 0:
+        notify("Failed to create symbolic links.", is_error=True)
 
 if __name__ == "__main__":
     main()
