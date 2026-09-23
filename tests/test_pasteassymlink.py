@@ -162,6 +162,17 @@ class TestCreateSymlinks(unittest.TestCase):
         self.assertEqual(success, 0)
         self.assertEqual(errors, 1)
 
+    def test_skip_same_directory(self):
+        file_path = os.path.join(self.source_dir.name, "same.txt")
+        with open(file_path, "w") as f:
+            f.write("content")
+        # Target directory is the same as source directory
+        success, errors = pasteassymlink.create_symlinks(
+            self.source_dir.name, [f"file://{file_path}"]
+        )
+        self.assertEqual(success, 0)
+        self.assertEqual(errors, 1)
+
     @patch("os.symlink")
     def test_unexpected_symlink_os_error(self, mock_symlink):
         mock_symlink.side_effect = PermissionError("Permission denied")
@@ -321,7 +332,7 @@ class TestMain(unittest.TestCase):
             expected_link = os.path.join(tgt_dir, "test.txt")
             self.assertTrue(os.path.islink(expected_link))
 
-    def test_main_failure_notification_when_only_errors(self):
+    def test_main_failure_notification_when_source_not_found(self):
         with tempfile.TemporaryDirectory() as tgt_dir:
             with patch.object(sys, "argv", ["pasteassymlink.py", tgt_dir]):
                 with patch(
@@ -331,7 +342,38 @@ class TestMain(unittest.TestCase):
                     with patch("pasteassymlink.notify") as mock_notify:
                         pasteassymlink.main()
                         mock_notify.assert_called_with(
-                            "Failed to create symbolic links.", is_error=True
+                            "Source file(s) not found.", is_error=True
+                        )
+
+    def test_main_failure_notification_same_directory(self):
+        with tempfile.TemporaryDirectory() as src_dir:
+            file_path = os.path.join(src_dir, "same.txt")
+            with open(file_path, "w") as f:
+                f.write("test")
+            with patch.object(sys, "argv", ["pasteassymlink.py", src_dir]):
+                with patch(
+                    "pasteassymlink.get_clipboard",
+                    return_value=("qdbus", f"file://{file_path}"),
+                ):
+                    with patch("pasteassymlink.notify") as mock_notify:
+                        pasteassymlink.main()
+                        mock_notify.assert_called_with(
+                            "Cannot create symlinks in the same folder as the source file(s).",
+                            is_error=True,
+                        )
+
+    def test_main_failure_notification_invalid_clipboard_text(self):
+        with tempfile.TemporaryDirectory() as tgt_dir:
+            with patch.object(sys, "argv", ["pasteassymlink.py", tgt_dir]):
+                with patch(
+                    "pasteassymlink.get_clipboard",
+                    return_value=("qdbus", "not an absolute path text"),
+                ):
+                    with patch("pasteassymlink.notify") as mock_notify:
+                        pasteassymlink.main()
+                        mock_notify.assert_called_with(
+                            "No valid file paths found on clipboard.",
+                            is_error=True,
                         )
 
 
