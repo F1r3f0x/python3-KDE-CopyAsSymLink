@@ -101,25 +101,54 @@ def parse_source_path(file_path: str) -> str | None:
 
     return source_path
 
-def create_symlinks(target_directory: str, clipboard_items: list[str]) -> tuple[int, int]:
+class SymlinkResult(tuple):
+    """Result tuple of (success_count, error_count) with detailed category stats."""
+    def __new__(cls, success_count: int, error_count: int, stats: dict[str, int]):
+        return super().__new__(cls, (success_count, error_count))
+
+    def __init__(self, success_count: int, error_count: int, stats: dict[str, int]):
+        self.success_count = success_count
+        self.error_count = error_count
+        self.stats = stats
+
+def create_symlinks(target_directory: str, clipboard_items: list[str]) -> SymlinkResult:
     """Creates symlinks in target_directory for the provided clipboard items."""
     success_count = 0
     error_count = 0
+    stats = {
+        "same_dir": 0,
+        "exists": 0,
+        "not_found": 0,
+        "invalid_path": 0,
+        "other": 0,
+    }
+
+    target_dir_real = os.path.realpath(target_directory)
 
     for raw_item in clipboard_items:
         source_path = parse_source_path(raw_item)
         if not source_path:
+            stats["invalid_path"] += 1
             error_count += 1
             continue
 
         if not os.path.exists(source_path):
             print(f"Skipping (not found): '{source_path}'")
+            stats["not_found"] += 1
             error_count += 1
             continue
 
         link_name = os.path.basename(source_path)
         if not link_name:
             print(f"Skipping (invalid link name): '{source_path}'")
+            stats["invalid_path"] += 1
+            error_count += 1
+            continue
+
+        # Prevent creating a symlink in the exact same directory as the source file
+        if os.path.dirname(os.path.realpath(source_path)) == target_dir_real:
+            print(f"Skipping (same directory): '{link_name}'")
+            stats["same_dir"] += 1
             error_count += 1
             continue
 
@@ -131,12 +160,14 @@ def create_symlinks(target_directory: str, clipboard_items: list[str]) -> tuple[
             success_count += 1
         except FileExistsError:
             print(f"Skipping (already exists): '{link_name}'")
+            stats["exists"] += 1
             error_count += 1
         except Exception as e:
             print(f"An unexpected error occurred for '{link_name}': {e}")
+            stats["other"] += 1
             error_count += 1
 
-    return success_count, error_count
+    return SymlinkResult(success_count, error_count, stats)
 
 def main() -> None:
     """Creates symbolic links in a target directory based on file paths from the clipboard."""
@@ -163,14 +194,28 @@ def main() -> None:
         sys.exit(1)
 
     clipboard_items = parse_clipboard_items(clipboard_text)
-    success_count, error_count = create_symlinks(target_directory, clipboard_items)
+    result = create_symlinks(target_directory, clipboard_items)
+    success_count, error_count = result
 
     print(f"\nOperation complete. {success_count} links created, {error_count} items skipped.")
 
     if success_count > 0:
-        notify(f"Created {success_count} symbolic link(s).")
+        if error_count > 0:
+            notify(f"Created {success_count} symbolic link(s) ({error_count} skipped).")
+        else:
+            notify(f"Created {success_count} symbolic link(s).")
     elif error_count > 0:
-        notify("Failed to create symbolic links.", is_error=True)
+        stats = getattr(result, "stats", {})
+        if stats.get("same_dir", 0) > 0 and stats["same_dir"] == error_count:
+            notify("Cannot create symlinks in the same folder as the source file(s).", is_error=True)
+        elif stats.get("exists", 0) > 0 and stats["exists"] == error_count:
+            notify("Item(s) already exist in target directory.", is_error=True)
+        elif stats.get("invalid_path", 0) > 0 and stats["invalid_path"] == error_count:
+            notify("No valid file paths found on clipboard.", is_error=True)
+        elif stats.get("not_found", 0) > 0 and stats["not_found"] == error_count:
+            notify("Source file(s) not found.", is_error=True)
+        else:
+            notify(f"Failed to create symbolic links ({error_count} skipped).", is_error=True)
 
 if __name__ == "__main__":
     main()

@@ -38,14 +38,14 @@ case "$ACTION" in
     
     # Install files with correct permissions and substituted binary path
     sed "s|@BIN_DIR@|$DIR_BIN|g" "$DESKTOPFILE" > "$DIR_DESKTOP/$DESKTOPFILE"
-    chmod 644 "$DIR_DESKTOP/$DESKTOPFILE"
+    chmod 755 "$DIR_DESKTOP/$DESKTOPFILE"
     install -m 755 "$SCRIPT" "$DIR_BIN/"
     
     echo "Installation complete!"
     echo "You may need to restart Dolphin for the action to appear."
     ;;
     
-  --uninstall)
+  --uninstall|--remove|--delete)
     echo "Uninstalling $NAME..."
     
     # Remove files (including legacy sys- desktop file if present)
@@ -58,7 +58,7 @@ case "$ACTION" in
     
   *)
     echo "Error: Unknown argument '$ACTION'"
-    echo "Usage: $0 [--install | --uninstall]"
+    echo "Usage: $0 [--install | --uninstall | --remove | --delete]"
     exit 1
     ;;
 esac
