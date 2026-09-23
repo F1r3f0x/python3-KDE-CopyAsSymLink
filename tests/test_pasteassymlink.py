@@ -150,6 +150,30 @@ class TestCreateSymlinks(unittest.TestCase):
         self.assertEqual(success, 0)
         self.assertEqual(errors, 1)
 
+    def test_root_path_empty_basename_skipped(self):
+        items = ["file:///"]
+        success, errors = pasteassymlink.create_symlinks(self.target_dir.name, items)
+        self.assertEqual(success, 0)
+        self.assertEqual(errors, 1)
+
+    def test_invalid_source_path_skipped(self):
+        items = ["relative/not_an_abs_path.txt"]
+        success, errors = pasteassymlink.create_symlinks(self.target_dir.name, items)
+        self.assertEqual(success, 0)
+        self.assertEqual(errors, 1)
+
+    @patch("os.symlink")
+    def test_unexpected_symlink_os_error(self, mock_symlink):
+        mock_symlink.side_effect = PermissionError("Permission denied")
+        file_path = os.path.join(self.source_dir.name, "denied.txt")
+        with open(file_path, "w") as f:
+            f.write("content")
+        success, errors = pasteassymlink.create_symlinks(
+            self.target_dir.name, [f"file://{file_path}"]
+        )
+        self.assertEqual(success, 0)
+        self.assertEqual(errors, 1)
+
 
 class TestGetClipboard(unittest.TestCase):
     """Tests for get_clipboard backend resolution and fallback."""
@@ -239,6 +263,24 @@ class TestNotify(unittest.TestCase):
         pasteassymlink.notify("Should not notify")
         mock_run.assert_not_called()
 
+    @patch.dict(os.environ, {"PASTEASSYMLINK_NO_NOTIFY": ""}, clear=True)
+    @patch("shutil.which")
+    @patch("subprocess.run")
+    def test_notify_send_handles_exception_gracefully(self, mock_run, mock_which):
+        mock_which.side_effect = lambda cmd: "/usr/bin/notify-send" if cmd == "notify-send" else None
+        mock_run.side_effect = OSError("Subprocess failed")
+        # Must not raise an exception
+        pasteassymlink.notify("Error Msg")
+
+    @patch.dict(os.environ, {"PASTEASSYMLINK_NO_NOTIFY": ""}, clear=True)
+    @patch("shutil.which")
+    @patch("subprocess.run")
+    def test_kdialog_handles_exception_gracefully(self, mock_run, mock_which):
+        mock_which.side_effect = lambda cmd: "/usr/bin/kdialog" if cmd == "kdialog" else None
+        mock_run.side_effect = OSError("Subprocess failed")
+        # Must not raise an exception
+        pasteassymlink.notify("Info Msg", is_error=False)
+
 
 class TestMain(unittest.TestCase):
     """Tests for main() entry point."""
@@ -278,6 +320,19 @@ class TestMain(unittest.TestCase):
 
             expected_link = os.path.join(tgt_dir, "test.txt")
             self.assertTrue(os.path.islink(expected_link))
+
+    def test_main_failure_notification_when_only_errors(self):
+        with tempfile.TemporaryDirectory() as tgt_dir:
+            with patch.object(sys, "argv", ["pasteassymlink.py", tgt_dir]):
+                with patch(
+                    "pasteassymlink.get_clipboard",
+                    return_value=("qdbus", "file:///non/existent/item.txt"),
+                ):
+                    with patch("pasteassymlink.notify") as mock_notify:
+                        pasteassymlink.main()
+                        mock_notify.assert_called_with(
+                            "Failed to create symbolic links.", is_error=True
+                        )
 
 
 if __name__ == "__main__":
