@@ -1,3 +1,5 @@
+.PHONY: install uninstall uninstall-old
+
 install:
 	sh install.sh --install
 
