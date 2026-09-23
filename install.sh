@@ -9,6 +9,7 @@ NAME="PasteAsSymLink"
 SCRIPT="pasteassymlink.py"
 USR_DESKTOPFILE="plabin-dolphin-pasteassymlink.desktop"
 SYS_DESKTOPFILE="sys-plabin-dolphin-pasteassymlink.desktop"
+DESKTOPFILE="$USR_DESKTOPFILE"
 ACTION=${1:-"--install"}  # Default to --install if no args
 
 SYS_DIR_DESKTOP="/usr/share/kio/servicemenus"
@@ -17,16 +18,14 @@ USR_DIR_DESKTOP="$HOME/.local/share/kio/servicemenus"
 USR_DIR_BIN="$HOME/.local/bin"
 
 # Check if root, change install path.
-if [ "$EUID" -eq 0 ]; then  # if su
+if [ "$(id -u)" -eq 0 ]; then
   echo "Running as root. Performing system-wide installation."
   DIR_DESKTOP="$SYS_DIR_DESKTOP"
   DIR_BIN="$SYS_DIR_BIN"
-  DESKTOPFILE="$SYS_DESKTOPFILE"
 else
   echo "Running as user. Performing local installation."
   DIR_DESKTOP="$USR_DIR_DESKTOP"
   DIR_BIN="$USR_DIR_BIN"
-  DESKTOPFILE="$USR_DESKTOPFILE"
 fi
 
 case "$ACTION" in
@@ -37,8 +36,9 @@ case "$ACTION" in
     mkdir -p "$DIR_DESKTOP"
     mkdir -p "$DIR_BIN"
     
-    # Install files with correct permissions
-    install -m 744 "$DESKTOPFILE" "$DIR_DESKTOP/"
+    # Install files with correct permissions and substituted binary path
+    sed "s|@BIN_DIR@|$DIR_BIN|g" "$DESKTOPFILE" > "$DIR_DESKTOP/$DESKTOPFILE"
+    chmod 644 "$DIR_DESKTOP/$DESKTOPFILE"
     install -m 755 "$SCRIPT" "$DIR_BIN/"
     
     echo "Installation complete!"
@@ -48,8 +48,9 @@ case "$ACTION" in
   --uninstall)
     echo "Uninstalling $NAME..."
     
-    # Remove files
+    # Remove files (including legacy sys- desktop file if present)
     rm -vf "$DIR_DESKTOP/$DESKTOPFILE"
+    rm -vf "$DIR_DESKTOP/$SYS_DESKTOPFILE"
     rm -vf "$DIR_BIN/$SCRIPT"
     
     echo "Uninstallation complete!"
