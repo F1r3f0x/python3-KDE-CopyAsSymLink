@@ -74,6 +74,9 @@ def main() -> None:
         else:
             source_path = file_path
 
+        # Normalize path and strip trailing slashes to prevent empty basename for directories
+        source_path = os.path.normpath(source_path)
+
         if not os.path.isabs(source_path):
             print(f"Skipping (not an absolute path): '{source_path}'")
             error_count += 1
@@ -85,6 +88,11 @@ def main() -> None:
             continue
         
         link_name = os.path.basename(source_path)
+        if not link_name:
+            print(f"Skipping (invalid link name): '{source_path}'")
+            error_count += 1
+            continue
+
         link_path = os.path.join(target_directory, link_name)
         
         try:
