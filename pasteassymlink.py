@@ -10,6 +10,7 @@
 import os
 import sys
 import subprocess
+import re
 from urllib.parse import urlparse, unquote
 
 def get_clipboard() -> tuple[str, str]:
@@ -49,13 +50,11 @@ def main() -> None:
         print("Error: Clipboard is empty or could not be read.")
         sys.exit(1)
 
-    # Clipboard items are separated by newlines
-    clipboard_items = ""
-    
-    if command == "qdbus":
-        clipboard_items = clipboard_text.split(' ')
+    # Extract items: handle space- or newline-separated file:// URIs, or line-separated paths
+    if "file://" in clipboard_text:
+        clipboard_items = re.findall(r'file://[^\s\r\n]+', clipboard_text)
     else:
-        clipboard_items = clipboard_text.split('\n')
+        clipboard_items = clipboard_text.splitlines()
     
     success_count = 0
     error_count = 0 
