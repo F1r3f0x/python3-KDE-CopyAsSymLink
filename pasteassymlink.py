@@ -29,7 +29,7 @@ def get_clipboard() -> tuple[str, str]:
             pass
 
     print("Error: Could not get clipboard contents. Please make sure you are running KDE Plasma or have xclip, xsel or wl-paste installed.")
-    return None
+    return (None, None)
 
 def main() -> None:
     """Creates symbolic links in a target directory based on file paths from the clipboard."""
