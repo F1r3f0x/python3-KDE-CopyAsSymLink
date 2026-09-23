@@ -6,7 +6,6 @@ MimeType=inode/directory;
 X-KDE-Priority=TopLevel
 X-KDE-MinNumberOfUrls=0
 X-KDE-MaxNumberOfUrls=1
-X-KDE-Protocols=file
 
 [Desktop Action pasteAsSymLink]
 Name=Paste as Symbolic Link

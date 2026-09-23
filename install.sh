@@ -45,7 +45,7 @@ case "$ACTION" in
     echo "You may need to restart Dolphin for the action to appear."
     ;;
     
-  --uninstall)
+  --uninstall|--remove|--delete)
     echo "Uninstalling $NAME..."
     
     # Remove files (including legacy sys- desktop file if present)
@@ -58,7 +58,7 @@ case "$ACTION" in
     
   *)
     echo "Error: Unknown argument '$ACTION'"
-    echo "Usage: $0 [--install | --uninstall]"
+    echo "Usage: $0 [--install | --uninstall | --remove | --delete]"
     exit 1
     ;;
 esac
