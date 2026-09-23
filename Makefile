@@ -1,4 +1,4 @@
-.PHONY: install uninstall uninstall-old test coverage
+.PHONY: install uninstall uninstall-old test coverage dist
 
 test:
 	python3 -m unittest discover -s tests -p "test_*.py"
@@ -26,3 +26,14 @@ uninstall:
 
 uninstall-old:
 	sh uninstall-old.sh
+
+dist:
+	zip -r PasteAsSymLink.zip \
+		pasteassymlink.py \
+		plabin-dolphin-pasteassymlink.desktop \
+		sys-plabin-dolphin-pasteassymlink.desktop \
+		install.sh \
+		uninstall-old.sh \
+		Makefile \
+		README.MD \
+		LICENSE.txt

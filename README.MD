@@ -7,6 +7,7 @@ This will give you a new "Paste as Symbolic Link" submenu on Dolphin. You can cr
 - run `make install`
 - quit and reopen Dolphin.
 - (optional) run `make test` to execute unit tests.
+- (optional) run `make dist` to generate the release zip archive.
 - (optional) run `make uninstall` to remove the files.
 
 ## Remove old version:
