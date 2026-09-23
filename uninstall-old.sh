@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAME=CopyAsSimLink
+NAME=CopyAsSymLink
 SCRIPT=copyassymlink
 DESKTOPFILE=plabin-dolphin-copyassymlink.desktop
 
@@ -10,8 +10,8 @@ if [ "$(id -u)" != "0" ]
     exit 1
   else
     echo "Press Enter to uninstall the first version of $NAME from your system"
-    read
-    rm -v "/usr/share/kio/servicemenus/$DESKTOPFILE"
-    rm -v "/usr/bin/$SCRIPT"
+    read -r
+    rm -vf "/usr/share/kio/servicemenus/$DESKTOPFILE"
+    rm -vf "/usr/bin/$SCRIPT"
     echo "Uninstallation complete"
 fi
