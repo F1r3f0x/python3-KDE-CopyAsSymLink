@@ -6,10 +6,11 @@ This will give you a new "Paste as Symbolic Link" submenu on Dolphin. You can cr
 ## Instructions:
 - run `make install`
 - quit and reopen Dolphin.
+- (optional) run `make test` to execute unit tests.
 - (optional) run `make uninstall` to remove the files.
 
 ## Remove old version:
-- run `make uninstall-old` to remove the old `CopyAsSimLink` script.
+- run `make uninstall-old` to remove the old `CopyAsSymLink` script.
 
 ## Requirements
 
@@ -24,8 +25,8 @@ This script is designed to be compatible with various Linux desktop environments
   | :- | :- | :- |
   | `qdbus` (Klipper) | KDE Plasma 6 Wayland - CachyOS | ✅ |
   | `wl-paste`        | GNOME Wayland (tested only the script) - Ubuntu 25.04 | ✅ |
-  | `xclip`           | Cinammon X11 - Linux Mint 22.2 (tested only the script) | ✅ |
-  | `xsel`            | Cinammon X11 - Linux Mint 22.2 (tested only the script) | ✅ |
+  | `xclip`           | Cinnamon X11 - Linux Mint 22.2 (tested only the script) | ✅ |
+  | `xsel`            | Cinnamon X11 - Linux Mint 22.2 (tested only the script) | ✅ |
 
 ## Credit to:
 - https://github.com/Faster3ck/MakeDesktopShortcuts for the install and uninstall scripts.
