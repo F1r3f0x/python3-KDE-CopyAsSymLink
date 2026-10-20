@@ -58,7 +58,18 @@ def get_clipboard() -> tuple[str | None, str | None]:
         ['xsel', '--clipboard', '--output']
     ]
 
-    for command in commands:
+    available_commands = [
+        command for command in commands
+        if shutil.which(command[0])
+    ]
+
+    if not available_commands:
+        msg = ("Missing clipboard dependencies. Please install at least one of: qdbus, wl-paste, xclip, or xsel.")
+        print(f"Error: {msg}")
+        notify(msg, is_error=True)
+        sys.exit(1)
+
+    for command in available_commands:
         try:
             result = subprocess.run(
                 command, capture_output=True, text=True, check=True, timeout=3, errors="replace"
@@ -66,11 +77,12 @@ def get_clipboard() -> tuple[str | None, str | None]:
             output = result.stdout.strip()
             if output:
                 return command[0], output
-        except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            pass
 
-    print("Error: Could not get clipboard contents. Please make sure you are running KDE Plasma or have xclip, xsel or wl-paste installed.")
-    return (None, None)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            continue
+
+    print("Error: Could not get clipboard contents.")
+    return None, None
 
 def parse_clipboard_items(clipboard_text: str) -> list[str]:
     """Extracts file paths or URIs from clipboard content."""
