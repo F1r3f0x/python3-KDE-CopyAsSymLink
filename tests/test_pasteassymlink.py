@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch, MagicMock
 import subprocess
+from string import Formatter
 
 # Ensure the root directory is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -190,6 +191,33 @@ class TestCreateSymlinks(unittest.TestCase):
 
 class TestGetClipboard(unittest.TestCase):
     """Tests for get_clipboard backend resolution and fallback."""
+
+    def setUp(self):
+        availability = patch("pasteassymlink.shutil.which", side_effect=lambda cmd: f"/usr/bin/{cmd}")
+        self.mock_which = availability.start()
+        self.addCleanup(availability.stop)
+
+    @patch("pasteassymlink.notify")
+    @patch("subprocess.run")
+    def test_no_backends_installed(self, mock_run, mock_notify):
+        self.mock_which.side_effect = None
+        self.mock_which.return_value = None
+        with self.assertRaises(SystemExit) as cm:
+            pasteassymlink.get_clipboard()
+        self.assertEqual(cm.exception.code, 1)
+        mock_run.assert_not_called()
+        mock_notify.assert_called_once_with(
+            "Missing clipboard dependencies. Please install at least one of: qdbus, wl-paste, xclip, or xsel.",
+            is_error=True,
+        )
+
+    @patch("subprocess.run")
+    def test_unavailable_backends_are_skipped(self, mock_run):
+        self.mock_which.side_effect = lambda cmd: "/usr/bin/xsel" if cmd == "xsel" else None
+        mock_run.return_value = MagicMock(stdout="file:///tmp/test.txt\n")
+        self.assertEqual(pasteassymlink.get_clipboard(), ("xsel", "file:///tmp/test.txt"))
+        self.assertEqual(mock_run.call_args.args[0], ["xsel", "--clipboard", "--output"])
+        mock_run.assert_called_once()
 
     @patch("subprocess.run")
     def test_first_backend_succeeds(self, mock_run):
@@ -463,6 +491,34 @@ class TestTranslations(unittest.TestCase):
         # Fallback to 'en' when environment is empty
         with patch.dict(os.environ, {}, clear=True):
             self.assertEqual(pasteassymlink.get_language(), "en")
+
+    def test_language_preference_list_uses_supported_fallback(self):
+        with patch.dict(os.environ, {"LANGUAGE": "fi:es_CL:en"}, clear=True):
+            self.assertEqual(pasteassymlink.get_language(), "fi")
+            self.assertEqual(pasteassymlink.tr("title"), "Pegar como Enlace Simbólico")
+
+    def test_explicit_locale_normalization(self):
+        for locale in ("pt_BR.UTF-8", "PT-br@custom", " pt_br.UTF-8@custom "):
+            with self.subTest(locale=locale):
+                self.assertEqual(pasteassymlink.tr("title", lang=locale), "Colar como Link Simbólico")
+
+    def test_explicit_language_overrides_environment(self):
+        with patch.dict(os.environ, {"LANGUAGE": "es"}):
+            self.assertEqual(pasteassymlink.tr("title", lang="en"), "Paste as SymLink")
+
+    def test_selected_neutral_locale_does_not_use_lower_priority_variable(self):
+        with patch.dict(os.environ, {"LC_ALL": "C", "LANG": "es"}, clear=True):
+            self.assertEqual(pasteassymlink.tr("title"), "Paste as SymLink")
+
+    def test_translation_placeholders_match_english(self):
+        formatter = Formatter()
+        for key, translations in pasteassymlink.TRANSLATIONS.items():
+            expected = {field for _, field, _, _ in formatter.parse(translations["en"]) if field is not None}
+            for language, message in translations.items():
+                with self.subTest(key=key, language=language):
+                    actual = {field for _, field, _, _ in formatter.parse(message) if field is not None}
+                    self.assertEqual(actual, expected)
+                    message.format(**{field: 2 for field in expected})
 
     def test_tr_exact_and_base_language(self):
         # Exact match for pt_BR

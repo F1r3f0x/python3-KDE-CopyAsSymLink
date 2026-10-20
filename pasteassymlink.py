@@ -248,51 +248,47 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     },
 }
 
-def get_language() -> str:
-    """Detects current user language code from environment variables."""
+def normalize_language(value: str) -> str:
+    """Remove locale encoding/modifiers and normalize language separators."""
+    return value.strip().split(".")[0].split("@")[0].replace("-", "_")
+
+
+def get_languages() -> list[str]:
+    """Read the first configured language variable, preserving preference order."""
     for var in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
-        val = os.environ.get(var)
-        if val:
-            # Handle multi-language lists like 'es_CL:es:en'
-            first = val.split(":")[0].strip()
-            # Remove encoding and modifiers, e.g. 'es_CL.UTF-8@euro' -> 'es_CL'
-            code = first.split(".")[0].split("@")[0].strip()
-            if code and code.lower() not in ("c", "posix"):
-                return code
-    return "en"
+        codes = [normalize_language(value) for value in os.environ.get(var, "").split(":")]
+        codes = [code for code in codes if code]
+        if codes:
+            return ["en" if code.lower() in ("c", "posix") else code for code in codes]
+    return ["en"]
+
+
+def get_language() -> str:
+    """Return the user's first language preference."""
+    return get_languages()[0]
+
 
 def tr(key: str, lang: str | None = None, **kwargs) -> str:
-    """Translates a message key according to the current or specified language."""
-    if lang is None:
-        lang = get_language()
-
-    lang_clean = lang.replace("-", "_")
-    base_lang = lang_clean.split("_")[0].lower()
-
+    """Translate using ordered locale preferences, then fall back to English."""
+    languages = get_languages() if lang is None else [lang]
     translations = TRANSLATIONS.get(key, {})
-
-    # Candidate order:
-    # 1. Exact match (e.g. 'pt_BR' or 'zh_CN')
-    # 2. Case-insensitive exact match (e.g. 'pt_br')
-    # 3. Base language (e.g. 'pt' or 'zh')
-    # 4. English fallback ('en')
-    # 5. Key itself as fallback
+    lookup = {code.lower(): message for code, message in translations.items()}
     msg = None
-    for candidate in (lang_clean, lang_clean.lower(), base_lang):
-        for k, v in translations.items():
-            if k.lower() == candidate.lower():
-                msg = v
+    for language in languages:
+        code = normalize_language(language).lower()
+        for candidate in (code, code.split("_")[0]):
+            if candidate in lookup:
+                msg = lookup[candidate]
                 break
         if msg is not None:
             break
-
     if msg is None:
         msg = translations.get("en", key)
 
     if kwargs:
         try:
             return msg.format(**kwargs)
-        except Exception:
+        except (KeyError, IndexError, ValueError, AttributeError, TypeError):
             return msg
     return msg
 
@@ -343,7 +339,18 @@ def get_clipboard() -> tuple[str | None, str | None]:
         ['xsel', '--clipboard', '--output']
     ]
 
-    for command in commands:
+    available_commands = [
+        command for command in commands
+        if shutil.which(command[0])
+    ]
+
+    if not available_commands:
+        msg = ("Missing clipboard dependencies. Please install at least one of: qdbus, wl-paste, xclip, or xsel.")
+        print(f"Error: {msg}")
+        notify(msg, is_error=True)
+        sys.exit(1)
+
+    for command in available_commands:
         try:
             result = subprocess.run(
                 command, capture_output=True, text=True, check=True, timeout=3, errors="replace"
@@ -351,11 +358,12 @@ def get_clipboard() -> tuple[str | None, str | None]:
             output = result.stdout.strip()
             if output:
                 return command[0], output
-        except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            pass
 
-    print("Error: Could not get clipboard contents. Please make sure you are running KDE Plasma or have xclip, xsel or wl-paste installed.")
-    return (None, None)
+        except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            continue
+
+    print("Error: Could not get clipboard contents.")
+    return None, None
 
 def parse_clipboard_items(clipboard_text: str) -> list[str]:
     """Extracts file paths or URIs from clipboard content."""
