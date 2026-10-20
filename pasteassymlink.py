@@ -78,7 +78,7 @@ def get_clipboard() -> tuple[str | None, str | None]:
             if output:
                 return command[0], output
 
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
             continue
 
     print("Error: Could not get clipboard contents.")

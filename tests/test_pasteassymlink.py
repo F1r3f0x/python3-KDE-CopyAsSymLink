@@ -189,6 +189,33 @@ class TestCreateSymlinks(unittest.TestCase):
 class TestGetClipboard(unittest.TestCase):
     """Tests for get_clipboard backend resolution and fallback."""
 
+    def setUp(self):
+        availability = patch("pasteassymlink.shutil.which", side_effect=lambda cmd: f"/usr/bin/{cmd}")
+        self.mock_which = availability.start()
+        self.addCleanup(availability.stop)
+
+    @patch("pasteassymlink.notify")
+    @patch("subprocess.run")
+    def test_no_backends_installed(self, mock_run, mock_notify):
+        self.mock_which.side_effect = None
+        self.mock_which.return_value = None
+        with self.assertRaises(SystemExit) as cm:
+            pasteassymlink.get_clipboard()
+        self.assertEqual(cm.exception.code, 1)
+        mock_run.assert_not_called()
+        mock_notify.assert_called_once_with(
+            "Missing clipboard dependencies. Please install at least one of: qdbus, wl-paste, xclip, or xsel.",
+            is_error=True,
+        )
+
+    @patch("subprocess.run")
+    def test_unavailable_backends_are_skipped(self, mock_run):
+        self.mock_which.side_effect = lambda cmd: "/usr/bin/xsel" if cmd == "xsel" else None
+        mock_run.return_value = MagicMock(stdout="file:///tmp/test.txt\n")
+        self.assertEqual(pasteassymlink.get_clipboard(), ("xsel", "file:///tmp/test.txt"))
+        self.assertEqual(mock_run.call_args.args[0], ["xsel", "--clipboard", "--output"])
+        mock_run.assert_called_once()
+
     @patch("subprocess.run")
     def test_first_backend_succeeds(self, mock_run):
         mock_run.return_value = MagicMock(stdout="file:///tmp/test.txt\n")
